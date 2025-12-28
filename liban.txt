@@ -1,0 +1,219 @@
+Application de Gestion de Dépenses - Plan Complet
+📊 Objectif Final de l'Application
+Créer une application web professionnelle permettant aux utilisateurs de :
+
+Suivre leurs dépenses quotidiennes
+
+Catégoriser leurs dépenses (nourriture, transport, loisirs, etc.)
+
+Analyser leurs habitudes de consommation via des tableaux de bord
+
+Fixer des budgets mensuels par catégorie
+
+Générer des rapports PDF/Excel
+
+Recevoir des alertes lorsque les budgets sont dépassés
+
+🎯 Objectifs Professionnels
+Développer une application full-stack avec Laravel
+
+Maîtriser les relations MySQL complexes
+
+Implémenter une UI/UX moderne avec Blade/Tailwind
+
+Pratiquer les bonnes pratiques de sécurité
+
+Créer des API RESTful pour éventuelle extension mobile
+
+Mettre en place des tests unitaires
+
+🗄️ Structure de la Base de Données MySQL
+1. Table users (déjà créée par Breeze)
+sql
+id
+name
+email
+email_verified_at
+password
+remember_token
+created_at
+updated_at
+2. Table categories
+sql
+CREATE TABLE categories (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    type ENUM('expense', 'income') DEFAULT 'expense',
+    color VARCHAR(7) DEFAULT '#3B82F6',
+    icon VARCHAR(50) DEFAULT 'receipt',
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+);
+3. Table transactions
+sql
+CREATE TABLE transactions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    type ENUM('expense', 'income') DEFAULT 'expense',
+    description VARCHAR(255),
+    date DATE NOT NULL,
+    receipt_path VARCHAR(255) NULL,
+    location VARCHAR(255) NULL,
+    payment_method ENUM('cash', 'card', 'transfer', 'mobile_money') DEFAULT 'cash',
+    is_recurring BOOLEAN DEFAULT FALSE,
+    recurring_frequency ENUM('daily', 'weekly', 'monthly', 'yearly') NULL,
+    tags JSON NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+    INDEX idx_user_date (user_id, date),
+    INDEX idx_category (category_id)
+);
+4. Table budgets
+sql
+CREATE TABLE budgets (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    period ENUM('monthly', 'weekly', 'yearly') DEFAULT 'monthly',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    notifications_enabled BOOLEAN DEFAULT TRUE,
+    threshold_percentage INT DEFAULT 80,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_budget (user_id, category_id, period, start_date),
+    INDEX idx_user_period (user_id, start_date, end_date)
+);
+5. Table savings_goals (Optionnel)
+sql
+CREATE TABLE savings_goals (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    target_amount DECIMAL(10,2) NOT NULL,
+    current_amount DECIMAL(10,2) DEFAULT 0.00,
+    deadline DATE NULL,
+    color VARCHAR(7) DEFAULT '#10B981',
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+📁 Structure des Dossiers Laravel
+text
+app/
+├── Http/
+│   ├── Controllers/
+│   │   ├── DashboardController.php
+│   │   ├── TransactionController.php
+│   │   ├── CategoryController.php
+│   │   ├── BudgetController.php
+│   │   └── ReportController.php
+│   └── Requests/
+│       ├── StoreTransactionRequest.php
+│       └── UpdateTransactionRequest.php
+├── Models/
+│   ├── User.php
+│   ├── Transaction.php
+│   ├── Category.php
+│   ├── Budget.php
+│   └── SavingsGoal.php
+├── Services/
+│   ├── ReportService.php
+│   └── BudgetAlertService.php
+├── View/
+│   └── Components/
+│       ├── StatsCard.php
+│       └── RecentTransactions.php
+└── Exports/
+    └── TransactionsExport.php
+🎨 Interface Utilisateur Planifiée
+Pages Principales :
+Dashboard - Vue d'ensemble avec :
+
+Résumé financier du mois
+
+Graphique des dépenses par catégorie
+
+Dépenses récentes
+
+Alertes de budget
+
+Transactions - Liste filtrable avec :
+
+Recherche par date/catégorie/montant
+
+Import/Export CSV/Excel
+
+Édition rapide
+
+Catégories - Gestion des catégories :
+
+Création/Modification
+
+Attribution de couleurs/icônes
+
+Statistiques par catégorie
+
+Budgets - Suivi des budgets :
+
+Barres de progression
+
+Alertes visuelles
+
+Historique
+
+Rapports - Analyses avancées :
+
+Comparaisons mensuelles
+
+Tendances annuelles
+
+Export PDF
+
+🚀 Fonctionnalités Avancées (Phase 2)
+API RESTful pour applications mobiles
+
+Notifications push en temps réel
+
+Import automatique depuis relevés bancaires
+
+Reconnaissance OCR pour factures
+
+Partage de budgets en famille/couple
+
+Prédictions de dépenses (ML basique)
+
+🔧 Installation et Configuration Initiale
+Avant de coder, voici les étapes préparatoires :
+
+1. Migrer la base de données
+bash
+php artisan migrate
+2. Seeder pour catégories par défaut
+Créer un seeder pour les catégories prédéfinies :
+
+bash
+php artisan make:seeder CategoriesTableSeeder
+3. Configurer les relations dans les Models
+Je vais maintenant te fournir le code étape par étape, en commençant par les Models et les Migrations. Veux-tu que je commence par :
+
+Les Models avec leurs relations ?
+
+Les Controllers avec la logique métier ?
+
+Les Views avec Tailwind CSS ?
+
+Ou les trois en parallèle par fonctionnalité ?
+
+Dis-moi par où tu veux commencer et je te fournirai le code correspondant ! 🚀
