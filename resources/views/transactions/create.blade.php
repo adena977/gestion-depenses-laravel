@@ -74,10 +74,10 @@
                                 <input type="number" 
                                        name="amount" 
                                        id="amount"
-                                       step="1"
-                                       min="1"
+                                       step="0.01"
+                                       min="0.01"
                                        value="{{ old('amount') }}"
-                                       placeholder="0"
+                                       placeholder="0.00"
                                        class="input input-bordered w-full pl-10 text-2xl font-bold {{ $errors->has('amount') ? 'input-error' : '' }}"
                                        required
                                        autofocus />
@@ -107,7 +107,6 @@
                                     @if($category->type === old('type', request('type', 'expense')))
                                         <option value="{{ $category->id }}" 
                                                 {{ old('category_id') == $category->id ? 'selected' : '' }}
-                                                data-icon="{{ $category->icon }}"
                                                 style="color: {{ $category->color }}">
                                             <i class="fas fa-{{ $category->icon }} mr-2"></i>
                                             {{ $category->name }}
@@ -374,9 +373,11 @@
                 document.getElementById('preview-title').textContent = descriptionInput.value;
             }
             
-            // Mettre à jour le montant - utiliser parseInt pour les nombres entiers
-            const amountValue = parseInt(amount) || 0;
-            const formattedAmount = amountValue.toLocaleString('fr-FR');
+            // Mettre à jour le montant
+            const formattedAmount = parseFloat(amount).toLocaleString('fr-FR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             
             const amountElement = document.getElementById('preview-amount');
             amountElement.textContent = `${formattedAmount} FDJ`;
@@ -384,7 +385,7 @@
             
             // Mettre à jour la catégorie
             if (selectedCategory && selectedCategory.value !== '') {
-                document.getElementById('preview-category').textContent = selectedCategory.text.replace(/<[^>]*>/g, ''); // Enlever les balises HTML
+                document.getElementById('preview-category').textContent = selectedCategory.text;
                 
                 // Mettre à jour l'icône et la couleur
                 const iconContainer = document.getElementById('preview-icon');
@@ -393,8 +394,7 @@
                 // Extraire la couleur de la catégorie (si disponible)
                 const colorMatch = selectedCategory.style.color || (type === 'expense' ? '#EF4444' : '#10B981');
                 iconContainer.style.backgroundColor = `${colorMatch}20`;
-                const icon = selectedCategory.dataset.icon || 'fa-receipt';
-                iconSymbol.className = `fas ${icon} text-xl`;
+                iconSymbol.className = `fas ${selectedCategory.dataset.icon || 'fa-receipt'} text-xl`;
                 iconSymbol.style.color = colorMatch;
             } else {
                 document.getElementById('preview-category').textContent = 'Sélectionnez une catégorie';

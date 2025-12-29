@@ -12,7 +12,7 @@ class SavingsGoal extends Model
     use HasFactory;
 
     /**
-     * The attributes that are mass assignable.
+     * Les attributs assignables en masse.
      *
      * @var array<int, string>
      */
@@ -23,21 +23,26 @@ class SavingsGoal extends Model
         'current_amount',
         'deadline',
         'color',
+        'is_completed',
+        'completed_at',
+        'description',
     ];
 
     /**
-     * The attributes that should be cast.
+     * Les attributs à caster.
      *
      * @var array<string, string>
      */
     protected $casts = [
+        'deadline' => 'date',
         'target_amount' => 'decimal:2',
         'current_amount' => 'decimal:2',
-        'deadline' => 'date',
+        'is_completed' => 'boolean',
+        'completed_at' => 'datetime',
     ];
 
     /**
-     * The accessors to append to the model's array form.
+     * Les accesseurs à ajouter au tableau du modèle.
      *
      * @var array<int, string>
      */
@@ -45,14 +50,20 @@ class SavingsGoal extends Model
         'progress_percentage',
         'remaining_amount',
         'remaining_days',
-        'is_completed',
         'is_overdue',
+        'status_color',
+        'formatted_deadline',
+        'days_left_text',
+        'daily_amount_needed',
+        'weekly_amount_needed',
+        'monthly_amount_needed',
+        'is_active',
     ];
 
     // RELATIONS
 
     /**
-     * Get the user that owns the savings goal.
+     * Obtenir l'utilisateur propriétaire de l'objectif d'épargne.
      */
     public function user(): BelongsTo
     {
@@ -62,7 +73,7 @@ class SavingsGoal extends Model
     // ACCESSORS
 
     /**
-     * Get the progress percentage.
+     * Obtenir le pourcentage de progression.
      */
     public function getProgressPercentageAttribute()
     {
@@ -75,7 +86,7 @@ class SavingsGoal extends Model
     }
 
     /**
-     * Get the remaining amount.
+     * Obtenir le montant restant.
      */
     public function getRemainingAmountAttribute()
     {
@@ -83,7 +94,8 @@ class SavingsGoal extends Model
     }
 
     /**
-     * Get remaining days until deadline.
+     * Obtenir le nombre de jours restants.
+     * Valeur positive = jours restants, Valeur négative = jours de retard
      */
     public function getRemainingDaysAttribute()
     {
@@ -91,31 +103,35 @@ class SavingsGoal extends Model
             return null;
         }
 
-        return max(0, Carbon::parse($this->deadline)->diffInDays(now(), false) * -1);
+        $now = Carbon::now();
+        $deadline = Carbon::parse($this->deadline);
+        
+        // diffInDays avec false pour obtenir une différence signée
+        return $deadline->diffInDays($now, false);
     }
 
     /**
-     * Check if goal is completed.
-     */
-    public function getIsCompletedAttribute()
-    {
-        return $this->current_amount >= $this->target_amount;
-    }
-
-    /**
-     * Check if goal is overdue.
+     * Vérifier si l'objectif est en retard.
      */
     public function getIsOverdueAttribute()
     {
-        if (!$this->deadline) {
+        if (!$this->deadline || $this->is_completed) {
             return false;
         }
 
-        return !$this->is_completed && $this->remaining_days < 0;
+        return $this->deadline < now();
     }
 
     /**
-     * Get status color based on progress.
+     * Vérifier si l'objectif est actif.
+     */
+    public function getIsActiveAttribute()
+    {
+        return !$this->is_completed && !$this->is_overdue;
+    }
+
+    /**
+     * Obtenir la couleur du statut basée sur la progression.
      */
     public function getStatusColorAttribute()
     {
@@ -131,7 +147,7 @@ class SavingsGoal extends Model
     }
 
     /**
-     * Get formatted deadline.
+     * Obtenir la date limite formatée.
      */
     public function getFormattedDeadlineAttribute()
     {
@@ -142,29 +158,129 @@ class SavingsGoal extends Model
         return $this->deadline->format('d/m/Y');
     }
 
+    /**
+     * Obtenir le texte des jours restants pour l'affichage.
+     */
+    public function getDaysLeftTextAttribute()
+    {
+        if (!$this->deadline) {
+            return 'Aucune date limite';
+        }
+
+        $days = $this->remaining_days;
+        
+        if ($days > 0) {
+            return round($days, 0) . ' jour' . ($days > 1 ? 's' : '') . ' restant' . ($days > 1 ? 's' : '');
+        } elseif ($days === 0) {
+            return "Aujourd'hui!";
+        } else {
+            $daysLate = abs($days);
+            return round($daysLate, 0) . ' jour' . ($daysLate > 1 ? 's' : '') . ' de retard';
+        }
+    }
+
+    /**
+     * Obtenir le montant quotidien nécessaire pour atteindre l'objectif.
+     */
+    public function getDailyAmountNeededAttribute()
+    {
+        if (!$this->deadline || $this->is_completed) {
+            return 0;
+        }
+
+        $days = $this->remaining_days;
+        
+        if ($days <= 0) {
+            return 0;
+        }
+
+        return round($this->remaining_amount / $days, 2);
+    }
+
+    /**
+     * Obtenir le montant hebdomadaire nécessaire pour atteindre l'objectif.
+     */
+    public function getWeeklyAmountNeededAttribute()
+    {
+        if (!$this->deadline || $this->is_completed) {
+            return 0;
+        }
+
+        $days = $this->remaining_days;
+        
+        if ($days <= 0) {
+            return 0;
+        }
+
+        $remainingWeeks = ceil($days / 7);
+        return round($this->remaining_amount / max(1, $remainingWeeks), 2);
+    }
+
+    /**
+     * Obtenir le montant mensuel nécessaire pour atteindre l'objectif.
+     */
+    public function getMonthlyAmountNeededAttribute()
+    {
+        if (!$this->deadline || $this->is_completed) {
+            return 0;
+        }
+
+        $days = $this->remaining_days;
+        
+        if ($days <= 0) {
+            return 0;
+        }
+
+        $remainingMonths = ceil($days / 30);
+        return round($this->remaining_amount / max(1, $remainingMonths), 2);
+    }
+
     // MUTATORS
 
     /**
-     * Set the color attribute with default.
+     * Définir l'attribut color avec une valeur par défaut.
      */
     public function setColorAttribute($value)
     {
         $this->attributes['color'] = $value ?: '#10B981';
     }
 
+    /**
+     * Définir l'attribut current_amount pour s'assurer qu'il n'est pas supérieur à target_amount.
+     */
+    public function setCurrentAmountAttribute($value)
+    {
+        $this->attributes['current_amount'] = min($value, $this->target_amount);
+        
+        // Marquer comme terminé si le montant actuel atteint ou dépasse la cible
+        if ($value >= $this->target_amount) {
+            $this->attributes['is_completed'] = true;
+            if (!isset($this->attributes['completed_at'])) {
+                $this->attributes['completed_at'] = now();
+            }
+        }
+    }
+
     // HELPERS
 
     /**
-     * Add amount to current savings.
+     * Ajouter un montant à l'épargne actuelle.
      */
-    public function addAmount(float $amount): bool
+    public function addAmount(float $amount, string $description = null): bool
     {
         $this->current_amount += $amount;
-        return $this->save();
+        
+        if ($this->current_amount >= $this->target_amount) {
+            $this->markAsCompleted();
+        } else {
+            $this->save();
+        }
+        
+        return true;
     }
 
     /**
-     * Withdraw amount from savings.
+     * Retirer un montant de l'épargne.
      */
     public function withdrawAmount(float $amount): bool
     {
@@ -173,41 +289,147 @@ class SavingsGoal extends Model
         }
 
         $this->current_amount -= $amount;
+        
+        if ($this->is_completed && $this->current_amount < $this->target_amount) {
+            $this->is_completed = false;
+            $this->completed_at = null;
+        }
+        
         return $this->save();
     }
 
     /**
-     * Get daily amount needed to reach goal.
+     * Marquer l'objectif comme terminé.
      */
-    public function getDailyAmountNeeded(): float
+    public function markAsCompleted(): bool
     {
-        if (!$this->deadline || $this->is_completed || $this->is_overdue) {
-            return 0;
-        }
-
-        $remainingDays = $this->remaining_days;
-        if ($remainingDays <= 0) {
-            return $this->remaining_amount;
-        }
-
-        return $this->remaining_amount / $remainingDays;
+        $this->is_completed = true;
+        $this->completed_at = now();
+        return $this->save();
     }
 
     /**
-     * Get monthly amount needed to reach goal.
+     * Réactiver un objectif terminé.
      */
-    public function getMonthlyAmountNeeded(): float
+    public function reactivate(): bool
     {
-        if (!$this->deadline || $this->is_completed || $this->is_overdue) {
+        $this->is_completed = false;
+        $this->completed_at = null;
+        return $this->save();
+    }
+
+    /**
+     * Vérifier si l'objectif est complété.
+     */
+    public function isCompleted(): bool
+    {
+        return $this->is_completed;
+    }
+
+    /**
+     * Obtenir le montant recommandé à épargner par mois.
+     */
+    public function getRecommendedMonthlySaving(): float
+    {
+        if (!$this->deadline || $this->is_completed) {
             return 0;
         }
 
-        $remainingDays = $this->remaining_days;
-        if ($remainingDays <= 0) {
+        $now = now();
+        $deadline = Carbon::parse($this->deadline);
+        
+        if ($deadline <= $now) {
             return $this->remaining_amount;
         }
 
-        $remainingMonths = ceil($remainingDays / 30);
-        return $this->remaining_amount / max(1, $remainingMonths);
+        $monthsRemaining = $now->diffInMonths($deadline, false);
+        if ($monthsRemaining <= 0) {
+            $monthsRemaining = 1;
+        }
+
+        return round($this->remaining_amount / $monthsRemaining, 2);
+    }
+
+    // SCOPES
+
+    /**
+     * Scope pour les objectifs terminés.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('is_completed', true);
+    }
+
+    /**
+     * Scope pour les objectifs actifs.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_completed', false);
+    }
+
+    /**
+     * Scope pour les objectifs en retard.
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->where('deadline', '<', now())
+                    ->where('is_completed', false);
+    }
+
+    /**
+     * Scope pour les objectifs avec date limite.
+     */
+    public function scopeWithDeadline($query)
+    {
+        return $query->whereNotNull('deadline');
+    }
+
+    /**
+     * Scope pour les objectifs sans date limite.
+     */
+    public function scopeWithoutDeadline($query)
+    {
+        return $query->whereNull('deadline');
+    }
+
+    /**
+     * Scope pour les objectifs approchant de la date limite (moins de 7 jours).
+     */
+    public function scopeNearingDeadline($query)
+    {
+        return $query->whereNotNull('deadline')
+                    ->where('deadline', '<=', now()->addDays(7))
+                    ->where('is_completed', false);
+    }
+
+    /**
+     * Scope pour les objectifs triés par priorité (en retard d'abord, puis approchant la date limite, puis autres).
+     */
+    public function scopeOrderByPriority($query)
+    {
+        return $query->orderByRaw('
+            CASE 
+                WHEN deadline < NOW() AND is_completed = 0 THEN 1
+                WHEN deadline <= DATE_ADD(NOW(), INTERVAL 7 DAY) AND is_completed = 0 THEN 2
+                ELSE 3
+            END
+        ')->orderBy('deadline', 'asc');
+    }
+
+    /**
+     * Scope pour les objectifs récents (créés dans les 30 derniers jours).
+     */
+    public function scopeRecent($query)
+    {
+        return $query->where('created_at', '>=', now()->subDays(30));
+    }
+
+    /**
+     * Scope pour les objectifs d'un utilisateur spécifique.
+     */
+    public function scopeForUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
     }
 }

@@ -78,8 +78,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/export', [ReportController::class, 'export'])->name('export');
     });
     
-    // Objectifs d'épargne
-    Route::prefix('savings')->name('savings.')->group(function () {
+Route::prefix('savings')->name('savings.')->group(function () {
         Route::get('/', [SavingsGoalController::class, 'index'])->name('index');
         Route::get('/create', [SavingsGoalController::class, 'create'])->name('create');
         Route::post('/', [SavingsGoalController::class, 'store'])->name('store');
@@ -88,11 +87,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/{savingsGoal}', [SavingsGoalController::class, 'update'])->name('update');
         Route::delete('/{savingsGoal}', [SavingsGoalController::class, 'destroy'])->name('destroy');
         
-        // Routes supplémentaires
-        Route::post('/{savingsGoal}/add', [SavingsGoalController::class, 'addAmount'])->name('add-amount');
-        Route::get('/{savingsGoal}/progress', [SavingsGoalController::class, 'progress'])->name('progress');
+        // Actions simples
+        Route::post('/{savingsGoal}/add-funds', [SavingsGoalController::class, 'addFunds'])->name('add-funds');
+        Route::post('/{savingsGoal}/withdraw-funds', [SavingsGoalController::class, 'withdrawFunds'])->name('withdraw-funds');
+        Route::post('/{savingsGoal}/complete', [SavingsGoalController::class, 'complete'])->name('complete');
+        Route::post('/{savingsGoal}/reactivate', [SavingsGoalController::class, 'reactivate'])->name('reactivate');
     });
-    
+});
     // API pour dashboard (données AJAX)
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/dashboard-stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
@@ -101,7 +102,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/recent-transactions', [TransactionController::class, 'recent'])->name('transactions.recent');
         Route::get('/budget-alerts', [BudgetController::class, 'alerts'])->name('budgets.alerts');
     });
-});
+    
+    
+
+
 
 // Routes d'authentification Breeze (déjà incluses)
 require __DIR__.'/auth.php';
